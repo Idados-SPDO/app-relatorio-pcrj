@@ -1,12 +1,10 @@
-# relatorios_pcrj/app.py
-
 import streamlit as st
 import pandas as pd
 from io import StringIO, BytesIO
 import datetime
 import zipfile
 
-from utils.data_utils import mask_code, prepare_df, split_quartil_contrato
+from utils.data_utils import mask_code, prepare_df, split_quartil_decreto
 from utils.excel_utils import make_excel_with_headers
 from utils.doc_utils import generate_full_doc, generate_price_only_doc
 
@@ -26,10 +24,8 @@ current_year = today.year
 current_quartil = pd.to_datetime(today).quarter
 document_name = f"{current_year}Q{current_quartil}"
 
-# ─────────── Upload do arquivo TXT ───────────
 uploaded = st.file_uploader("Coloque o arquivo aqui", type="txt")
 if uploaded is not None:
-    # ───────────── Leitura e tratamento inicial ─────────────
     data = uploaded.read().decode("latin-1")
     df = pd.read_csv(
         StringIO(data),
@@ -39,7 +35,6 @@ if uploaded is not None:
         engine="python",
     )
 
-    # Remover colunas indesejadas (índices 7 e 9)
     df = df.drop(df.columns[[7, 9]], axis=1)
     df.columns = [
         "Código do Item",
@@ -55,26 +50,22 @@ if uploaded is not None:
         "Descrição",
     ]
 
-    # Formatar "Código do Item"
     df["Código do Item"] = df["Código do Item"].apply(mask_code)
 
-    # Separar em quartil e contrato
-    quartil_df, contrato_df = split_quartil_contrato(df)
+    quartil_df, decreto_df = split_quartil_decreto(df)
 
-    # Exibir tabelas no Streamlit
-    tab_quartil, tab_contrato = st.tabs(["Quartil", "Contrato Média"])
+    tab_quartil, tab_decreto = st.tabs(["Quartil", "Decreto (Média)"])
     with tab_quartil:
         st.header("Quartil")
         st.dataframe(quartil_df)
-    with tab_contrato:
-        st.header("Contrato Média")
-        st.dataframe(contrato_df)
+    with tab_decreto:
+        st.header("Decreto (Média)")
+        st.dataframe(decreto_df)
 
     # ─────────── Preparar outputs formatados ───────────
     quartil_out = prepare_df(quartil_df)
-    contrato_out = prepare_df(contrato_df)
+    decreto_out = prepare_df(decreto_df)
 
-    # Cabeçalhos para Excel/Word
     texto_cabecalho = (
         "Prefeitura da Cidade do Rio de Janeiro\n"
         "Tabela de Preços de Mercado de Gêneros Alimentícios\n"
@@ -88,7 +79,6 @@ if uploaded is not None:
     )
 
     # ─────────── Gerar bytes de cada arquivo ───────────
-    # Excel Quartil (6 colunas)
     bytes_excel_quartil = make_excel_with_headers(
         quartil_out,
         sheet="Quartil",
@@ -96,62 +86,52 @@ if uploaded is not None:
         text2=texto_subcabecalho,
         name="",
     )
-    # Excel Quartil Praticado (5 colunas + Nº)
     bytes_excel_quartil_praticado = make_excel_with_headers(
         quartil_out,
-        sheet="Quartil - praticado",
+        sheet="Quartil - Praticado",
         text1=texto_cabecalho,
         text2=texto_subcabecalho,
         name="preço_praticado",
     )
 
-    # Excel Contrato (6 colunas)
-    bytes_excel_contrato = make_excel_with_headers(
-        contrato_out,
-        sheet="Contrato",
+    bytes_excel_decreto = make_excel_with_headers(
+        decreto_out,
+        sheet="Decreto",
         text1=texto_cabecalho,
         text2=texto_subcabecalho,
         name="",
     )
-    # Excel Contrato Praticado (5 colunas + Nº)
-    bytes_excel_contrato_praticado = make_excel_with_headers(
-        contrato_out,
-        sheet="Contrato - praticado",
+    bytes_excel_decreto_praticado = make_excel_with_headers(
+        decreto_out,
+        sheet="Decreto - Praticado",
         text1=texto_cabecalho,
         text2=texto_subcabecalho,
         name="preço_praticado",
     )
-
-    # Word Quartil (todos os campos)
     bytes_docx_quartil = generate_full_doc(quartil_df, validade)
-    # Word Quartil Preço Praticado (só 4 colunas + Nº)
     bytes_docx_quartil_praticado = generate_price_only_doc(quartil_df, validade)
 
-    # Word Contrato (todos os campos)
-    bytes_docx_contrato = generate_full_doc(contrato_df, validade)
-    # Word Contrato Preço Praticado (só 4 colunas + Nº)
-    bytes_docx_contrato_praticado = generate_price_only_doc(contrato_df, validade)
+    bytes_docx_decreto = generate_full_doc(decreto_df, validade)
+    bytes_docx_decreto_praticado = generate_price_only_doc(decreto_df, validade)
 
     # ─────────── Criar ZIP em memória ───────────
     zip_buffer = BytesIO()
     with zipfile.ZipFile(zip_buffer, "w", compression=zipfile.ZIP_DEFLATED) as zf:
-        # Excel
         zf.writestr(f"Quartil - GENALIM{document_name}.xlsx", bytes_excel_quartil)
         zf.writestr(
             f"Quartil - PRE_TAB_{document_name}.xlsx", bytes_excel_quartil_praticado
         )
-        zf.writestr(f"Contrato - GENALIM{document_name}.xlsx", bytes_excel_contrato)
+        zf.writestr(f"Contrato - GENALIM{document_name}.xlsx", bytes_excel_decreto)
         zf.writestr(
-            f"Contrato - PRE_TAB_{document_name}.xlsx", bytes_excel_contrato_praticado
+            f"Contrato - PRE_TAB_{document_name}.xlsx", bytes_excel_decreto_praticado
         )
-        # Word
         zf.writestr(f"Quartil - GENALIM{document_name}.doc", bytes_docx_quartil)
         zf.writestr(
             f"Quartil - PRE_TAB_{document_name}.doc", bytes_docx_quartil_praticado
         )
-        zf.writestr(f"Contrato - GENALIM{document_name}.doc", bytes_docx_contrato)
+        zf.writestr(f"Decreto - GENALIM{document_name}.doc", bytes_docx_decreto)
         zf.writestr(
-            f"Contrato - PRE_TAB_{document_name}.doc", bytes_docx_contrato_praticado
+            f"Decreto - PRE_TAB_{document_name}.doc", bytes_docx_decreto_praticado
         )
 
     zip_buffer.seek(0)
