@@ -56,11 +56,11 @@ def prepare_df(df: pd.DataFrame) -> pd.DataFrame:
     ]
 
 
-def split_quartil_contrato(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+def split_quartil_decreto(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
     Recebe o DataFrame original (já com colunas renomeadas), aplica mask_code  
-    e devolve dois DataFrames: um com itens que começam por "89" (quartil) e outro "90" (contrato).
+    e devolve dois DataFrames: um com itens que começam por "89" (quartil) e outro "90" (decreto).
     """
     quartil_df = df[df["Código do Item"].astype(str).str.startswith("89")].reset_index(drop=True)
-    contrato_df = df[df["Código do Item"].astype(str).str.startswith("90")].reset_index(drop=True)
-    return quartil_df, contrato_df
+    decreto_df = df[df["Código do Item"].astype(str).str.startswith("90")].reset_index(drop=True)
+    return quartil_df, decreto_df
