@@ -59,8 +59,22 @@ def prepare_df(df: pd.DataFrame) -> pd.DataFrame:
 def split_quartil_decreto(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
     Recebe o DataFrame original (já com colunas renomeadas), aplica mask_code  
-    e devolve dois DataFrames: um com itens que começam por "89" (quartil) e outro "90" (decreto).
+    e devolve dois DataFrames: um com itens que começam por "89" (quartil) e outro "90" (decreto),
+    mas ajusta o prefixo "90" para "89" no DataFrame de decreto.
     """
-    quartil_df = df[df["Código do Item"].astype(str).str.startswith("89")].reset_index(drop=True)
-    decreto_df = df[df["Código do Item"].astype(str).str.startswith("90")].reset_index(drop=True)
+    # Filtra itens que começam com "89" (quartil)
+    quartil_df = df[df["Código do Item"].astype(str).str.startswith("89")].copy().reset_index(drop=True)
+
+    # Filtra itens que começam com "90" (decreto)
+    decreto_df = df[df["Código do Item"].astype(str).str.startswith("90")].copy()
+
+    # Substitui o prefixo "90" por "89" na coluna "Código do Item"
+    decreto_df["Código do Item"] = (
+        decreto_df["Código do Item"]
+        .astype(str)
+        .str.replace(r"^90", "89", regex=True)
+    )
+
+    decreto_df = decreto_df.reset_index(drop=True)
     return quartil_df, decreto_df
+
