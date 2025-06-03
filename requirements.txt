@@ -4,4 +4,3 @@ openpyxl
 xlsxwriter
 python-docx
 docx2pdf
-pythoncom
