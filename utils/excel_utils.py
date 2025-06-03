@@ -17,7 +17,6 @@ def make_excel_with_headers(
     buf = BytesIO()
 
     if name == "preço_praticado":
-        # Seleciona as 4 colunas + adiciona "Nº"
         df4 = df_export[
             [
                 "Código do Item",
@@ -34,7 +33,6 @@ def make_excel_with_headers(
         widths = [5, 15, 60, 12, 12]
         df_to_write = df4
     else:
-        # Mantém as 6 colunas originais
         df6 = df_export.copy()
         merge_range_header1 = "A1:F1"
         merge_range_header2 = "A2:F2"
@@ -46,7 +44,6 @@ def make_excel_with_headers(
         wb = writer.book
         ws = writer.sheets[sheet]
 
-        # Formatos
         fmt1 = wb.add_format(
             {
                 "align": "center",
@@ -70,7 +67,6 @@ def make_excel_with_headers(
             {"align": "left", "valign": "vcenter", "text_wrap": True}
         )
 
-        # Mesclar cabeçalhos
         ws.merge_range(merge_range_header1, text1, fmt1)
         ws.merge_range(merge_range_header2, text2, fmt2)
         ws.set_row(0, 50)
