@@ -8,7 +8,6 @@ import calendar
 from utils.data_utils import mask_code, prepare_df, split_quartil_decreto
 from utils.excel_utils import make_excel_with_headers
 from utils.doc_utils import generate_full_doc, generate_price_only_doc
-from utils.pdf_utils import convert_doc_to_pdf
 
 # ─────────── Configurações iniciais de Streamlit ───────────
 st.set_page_config(
@@ -140,17 +139,6 @@ if uploaded is not None:
     bytes_docx_decreto = generate_full_doc(decreto_df, validade)
     bytes_docx_decreto_praticado = generate_price_only_doc(decreto_df, validade)
 
-    # ─────────── Converter cada DOCX em PDF ───────────
-    pdf_bytes_quartil = convert_doc_to_pdf(bytes_docx_quartil, f"Quartil_{document_name}")
-    pdf_bytes_quartil_praticado = convert_doc_to_pdf(bytes_docx_quartil_praticado, f"QuartilPraticado_{document_name}")
-
-    pdf_bytes_contrato = convert_doc_to_pdf(bytes_docx_decreto, f"Contrato_{document_name}")
-    pdf_bytes_contrato_praticado = convert_doc_to_pdf(bytes_docx_decreto_praticado, f"ContratoPraticado_{document_name}")
-
-    # Se qualquer PDF falhar, mostra aviso (mas continua gerando o ZIP)
-    if None in (pdf_bytes_quartil, pdf_bytes_quartil_praticado, pdf_bytes_contrato, pdf_bytes_contrato_praticado):
-        st.error("Pelo menos um PDF não pôde ser gerado. Verifique se o Word está instalado corretamente.")
-
     # ─────────── Criar ZIP em memória (BytesIO) e incluir todos os arquivos ───────────
     zip_buffer = BytesIO()
     with zipfile.ZipFile(zip_buffer, "w", compression=zipfile.ZIP_DEFLATED) as zf:
@@ -177,39 +165,6 @@ if uploaded is not None:
             f"Contrato - PRE_TAB_{document_name}.docx",
             bytes_docx_decreto_praticado,
         )
-
-        # 3) PDF (se gerados com sucesso)
-        if pdf_bytes_quartil is not None:
-            zf.writestr(f"Quartil - GENALIM_{document_name}.pdf", pdf_bytes_quartil)
-        else:
-            zf.writestr(
-                f"Aviso_Conversao_PDF_Quartil_{document_name}.txt",
-                "Não foi possível gerar o PDF a partir do Quartil DOCX.",
-            )
-
-        if pdf_bytes_quartil_praticado is not None:
-            zf.writestr(f"Quartil - PRE_TAB_{document_name}.pdf", pdf_bytes_quartil_praticado)
-        else:
-            zf.writestr(
-                f"Aviso_Conversao_PDF_QuartilPraticado_{document_name}.txt",
-                "Não foi possível gerar o PDF a partir do Quartil (Praticado) DOCX.",
-            )
-
-        if pdf_bytes_contrato is not None:
-            zf.writestr(f"Contrato - GENALIM_{document_name}.pdf", pdf_bytes_contrato)
-        else:
-            zf.writestr(
-                f"Aviso_Conversao_PDF_Contrato_{document_name}.txt",
-                "Não foi possível gerar o PDF a partir do Contrato DOCX.",
-            )
-
-        if pdf_bytes_contrato_praticado is not None:
-            zf.writestr(f"Contrato - PRE_TAB_{document_name}.pdf", pdf_bytes_contrato_praticado)
-        else:
-            zf.writestr(
-                f"Aviso_Conversao_PDF_ContratoPraticado_{document_name}.txt",
-                "Não foi possível gerar o PDF a partir do Contrato (Praticado) DOCX.",
-            )
 
     # Voltar o ponteiro para o início do buffer
     zip_buffer.seek(0)
