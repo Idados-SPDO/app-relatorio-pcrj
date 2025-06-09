@@ -67,6 +67,13 @@ def make_excel_with_headers(
             {"align": "left", "valign": "vcenter", "text_wrap": True}
         )
 
+        num_fmt = wb.add_format({
+            "num_format": "0.00", 
+            "align": "center", 
+            "valign": "vcenter", 
+            "text_wrap": True
+        })
+
         ws.merge_range(merge_range_header1, text1, fmt1)
         ws.merge_range(merge_range_header2, text2, fmt2)
         ws.set_row(0, 50)
@@ -74,9 +81,22 @@ def make_excel_with_headers(
 
         for idx, w in enumerate(widths):
             if name == "preço_praticado":
-                fmt = left_fmt if idx == 2 else center_fmt
+                # df4 tem colunas: Nº(0), Código(1), Desc(2), Unidade(3), Preço(4)
+                if idx == 2:
+                    fmt = left_fmt
+                elif idx == 4:
+                    fmt = num_fmt
+                else:
+                    fmt = center_fmt
             else:
-                fmt = left_fmt if idx == 1 else center_fmt
+                # df6 tem colunas: Código(0), Desc(1), Unidade(2), Atacado(3), Varejo(4), Praticado(5)
+                if idx == 1:
+                    fmt = left_fmt
+                elif idx in (3, 4, 5):
+                    fmt = num_fmt
+                else:
+                    fmt = center_fmt
+
             ws.set_column(idx, idx, w, fmt)
 
         ws.set_default_row(60)
