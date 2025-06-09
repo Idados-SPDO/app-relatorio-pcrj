@@ -75,7 +75,7 @@ if uploaded is not None:
         "Descrição",
     ]
     df["Código do Item"] = df["Código do Item"].apply(mask_code)
-
+        
     quartil_df, decreto_df = split_quartil_decreto(df)
 
     tab_quartil, tab_decreto = st.tabs(["Quartil", "Decreto (Média)"])
@@ -139,7 +139,7 @@ if uploaded is not None:
     bytes_docx_decreto = generate_full_doc(decreto_df, validade)
     bytes_docx_decreto_praticado = generate_price_only_doc(decreto_df, validade)
 
-    # ─────────── Criar ZIP em memória (BytesIO) e incluir todos os arquivos ───────────
+     # ─────────── Criar ZIP em memória (BytesIO) e incluir todos os arquivos ───────────
     zip_buffer = BytesIO()
     with zipfile.ZipFile(zip_buffer, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         # 1) Excel (.xlsx)
@@ -166,6 +166,7 @@ if uploaded is not None:
             bytes_docx_decreto_praticado,
         )
 
+        
     # Voltar o ponteiro para o início do buffer
     zip_buffer.seek(0)
 
