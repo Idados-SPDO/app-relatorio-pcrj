@@ -77,10 +77,16 @@ def generate_full_doc(df: pd.DataFrame, validade: str) -> bytes:
     ["Código do Item", "Descrição do Item", "Unidade", "Preço Atacado", "Preço Varejo", "Preço Praticado"].
     Retorna os bytes do documento.
     """
+    
     doc = Document()
     add_header_paragraphs(doc, validade)
 
     quartil_doc = df.copy()
+
+    for col in ["Preço Atacado", "Preço Varejo", "Preço Praticado"]:
+        quartil_doc[col] = pd.to_numeric(quartil_doc[col], errors="coerce") \
+                             .round(2) \
+                             .apply(lambda x: f"{x:.2f}".replace(".", ",") if pd.notna(x) else "")
 
     def combine_desc(row):
         prod = str(row["Produto"])
@@ -168,9 +174,10 @@ def generate_price_only_doc(df: pd.DataFrame, validade: str) -> bytes:
         return prod + "\n" + str(d).strip()
 
     price_df["Descrição do Item"] = price_df.apply(combine_desc, axis=1)
-    price_df["Preço (em R$)"] = price_df["Preço Praticado"].apply(
-        lambda x: f"{x:.2f}".replace(".", ",") if pd.notna(x) else ""
-    )
+    price_df["Preço Praticado"] = pd.to_numeric(price_df["Preço Praticado"], errors="coerce").round(2)
+    # 2) Formata como string com duas casas e vírgula
+    price_df["Preço (em R$)"] = price_df["Preço Praticado"] \
+        .apply(lambda x: f"{x:.2f}".replace(".", ",") if pd.notna(x) else "")
 
     cols = ["Código do Item", "Descrição do Item", "Unidade", "Preço (em R$)"]
     tbl_df = price_df[cols].copy()
