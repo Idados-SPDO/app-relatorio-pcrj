@@ -4,7 +4,6 @@ from io import StringIO, BytesIO
 import datetime
 import zipfile
 import calendar
-import snowflake.connector
 from snowflake.snowpark import Session
 
 
