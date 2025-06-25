@@ -4,6 +4,9 @@ from io import StringIO, BytesIO
 import datetime
 import zipfile
 import calendar
+import snowflake.connector
+from snowflake.snowpark import Session
+
 
 from utils.data_utils import mask_code, prepare_df, split_quartil_decreto
 from utils.excel_utils import make_excel_with_headers
@@ -12,11 +15,140 @@ from utils.doc_utils import generate_full_doc, generate_price_only_doc
 # ─────────── Configurações iniciais de Streamlit ───────────
 st.set_page_config(
     page_title="SPDO - Automatizador de Relatórios PCRJ",
-    page_icon="fgv_logo.png"
+    page_icon="fgv_logo.png",
+    initial_sidebar_state="expanded",
+    layout="wide"
 )
 st.title("Automatizador de Relatórios PCRJ")
 st.logo("logo_ibre.png")
 
+@st.cache_resource
+def get_session():
+    return Session.builder.configs(st.secrets["snowflake"]).create()
+
+session = get_session()
+
+def load_sazonalidade():
+    sql = "SELECT * FROM BASES_SPDO.DB_APP_RELATORIO_PCRJ.TB_SAZONALIDADE"
+    return session.sql(sql).to_pandas()
+
+
+uploaded_sazonalidade = st.sidebar.file_uploader(
+    "Atualizar tabela de sazonalidade:", 
+    type=["xlsx"]
+)
+
+if uploaded_sazonalidade is not None:
+    # Lê a primeira planilha, mantendo todos os campos como string
+    # Esse dado vai para a snow:
+    df = pd.read_excel(uploaded_sazonalidade, sheet_name=0, dtype=str)
+    
+    df.columns = [
+         'COD_EXT', 'COD_FGV',
+         'ESPEC_CLIENTE', 'UNIDADE',
+         'ALTA_OFERTA', 'REGULAR', 'BAIXA_OFERTA'
+    ]
+    # Até aqui
+
+    df_long = df.melt(
+        id_vars=['COD_EXT','COD_FGV','ESPEC_CLIENTE','UNIDADE'],
+        value_vars=['ALTA_OFERTA','REGULAR','BAIXA_OFERTA'],
+        var_name='OFERTA',
+        value_name='MESES'
+    )
+
+    df_long['MESES'] = (
+        df_long['MESES']
+        .str.replace('/', ', ')
+        .str.split(r',\s*')
+    )
+    
+    df_long = df_long.explode('MESES')
+    df_long['MESES'] = df_long['MESES'].str.strip()
+    df_pivot = (
+        df_long
+        .pivot_table(
+            index=['COD_EXT','COD_FGV','ESPEC_CLIENTE','UNIDADE'],
+            columns='MESES',
+            values='OFERTA',
+            aggfunc='first'     
+        )
+        .reset_index()
+    )
+    meses_ordem = [
+        'Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+        'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'
+    ]
+    df_pivot = df_pivot[
+        ['COD_EXT','COD_FGV','ESPEC_CLIENTE','UNIDADE']
+        + [m for m in meses_ordem if m in df_pivot.columns]
+    ]
+    df_pivot = df_pivot.rename(columns=lambda c: c.upper() if c in meses_ordem else c)
+    df_pivot = df_pivot.rename(columns={'MARÇO': 'MARCO'})
+
+    snow_df = session.create_dataframe(df_pivot)
+    snow_df.write.mode("overwrite").save_as_table("BASES_SPDO.DB_APP_RELATORIO_PCRJ.TB_SAZONALIDADE")
+    st.success("Tabela de Sazonalidade atualizada com sucesso!")
+
+df_snow = load_sazonalidade()
+month_map = {
+    1: 'JANEIRO',   2: 'FEVEREIRO', 3: 'MARCO',    4: 'ABRIL',
+    5: 'MAIO',      6: 'JUNHO',     7: 'JULHO',    8: 'AGOSTO',
+    9: 'SETEMBRO', 10: 'OUTUBRO',  11: 'NOVEMBRO',12: 'DEZEMBRO'
+}
+current_month_col = month_map[datetime.date.today().month]
+
+# 2) seleciona apenas as colunas desejadas
+cols_to_show = ['COD_EXT','COD_FGV','ESPEC_CLIENTE','UNIDADE', current_month_col]
+df_mes_atual = df_snow[cols_to_show]
+
+# 3) exibe no Streamlit
+def show_item_warning(df):
+    df = df[['COD_EXT', 'COD_FGV', 'ESPEC_CLIENTE']].astype(str)
+    if df.empty:
+        return "Sem registros."
+    linhas = df.apply(lambda row: f"{row['ESPEC_CLIENTE'].capitalize()}", axis=1)
+    # uma quebra simples entre linhas:
+    return " - ".join(linhas.tolist())
+
+st.write(f"### Sazonalidade para {current_month_col}")
+def alert_custom(msg: str, bg: str = "#FFA500", text: str = "#000"):
+    html = f"""
+    <div style="
+        background-color: {bg};
+        color: {text};
+        padding: 0.75em 1em;
+        border-radius: 0.25em;
+        margin-bottom: 1em;
+    ">
+      <strong>Atenção:</strong> {msg}
+    </div>
+    """
+    st.markdown(html, unsafe_allow_html=True)
+
+col1, col2, col3 = st.columns(3)
+with col1.expander(f"Alta Oferta:"):
+    df_alt = df_mes_atual[df_mes_atual[current_month_col] == "ALTA_OFERTA"]
+    texto = show_item_warning(df_alt)
+    if texto:
+        alert_custom(texto, bg="#E89854", text="white")
+    else:
+        st.info("Sem registros.")
+
+with col2.expander("Média Oferta:"):
+    df_med = df_mes_atual[df_mes_atual[current_month_col] == "REGULAR"]
+    texto = show_item_warning(df_med)
+    if texto:
+        alert_custom(texto, bg="#E8CF54", text="black")
+    else:
+        st.info("Sem registros.")
+with col3.expander("Baixa Oferta:"):
+    df_baix = df_mes_atual[df_mes_atual[current_month_col] == "BAIXA_OFERTA"]
+    texto = show_item_warning(df_baix)
+    if texto:
+       alert_custom(texto, bg="#8CE854", text="black")
+    else:
+        st.info("Sem registros.")
 # ─────────── Cálculo dinâmico de validade e nome dos arquivos ───────────
 today = datetime.date.today()
 day = today.day
@@ -48,7 +180,7 @@ current_year = today.year
 current_quartil = pd.to_datetime(today).quarter
 document_name = f"{current_year}Q{current_quartil}"
 
-uploaded = st.file_uploader("Coloque o arquivo aqui", type="txt")
+uploaded = st.sidebar.file_uploader("Coloque o arquivo GENEROSCGM:", type="txt")
 if uploaded is not None:
     # ─────────── Ler e tratar o TXT enviado ───────────
     data = uploaded.read().decode("latin-1")
