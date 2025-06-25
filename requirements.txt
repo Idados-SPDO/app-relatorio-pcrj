@@ -4,3 +4,6 @@ openpyxl
 xlsxwriter
 python-docx
 docx2pdf
+pandas
+snowflake-connector-python
+snowflake-snowpark-python
