@@ -6,7 +6,6 @@ import zipfile
 import calendar
 from snowflake.snowpark import Session
 
-
 from utils.data_utils import mask_code, prepare_df, split_quartil_decreto
 from utils.excel_utils import make_excel_with_headers
 from utils.doc_utils import generate_full_doc, generate_price_only_doc
@@ -120,13 +119,13 @@ def alert_custom(msg: str, bg: str = "#FFA500", text: str = "#000"):
         border-radius: 0.25em;
         margin-bottom: 1em;
     ">
-      <strong>Atenção:</strong> {msg}
+        {msg}
     </div>
     """
     st.markdown(html, unsafe_allow_html=True)
 
 col1, col2, col3 = st.columns(3)
-with col1.expander(f"Alta Oferta:"):
+with col1.expander(f"Alta Oferta (tendencia de preços mais baixos):"):
     df_alt = df_mes_atual[df_mes_atual[current_month_col] == "ALTA_OFERTA"]
     texto = show_item_warning(df_alt)
     if texto:
@@ -134,14 +133,14 @@ with col1.expander(f"Alta Oferta:"):
     else:
         st.info("Sem registros.")
 
-with col2.expander("Média Oferta:"):
+with col2.expander("Média Oferta (preços estáveis):"):
     df_med = df_mes_atual[df_mes_atual[current_month_col] == "REGULAR"]
     texto = show_item_warning(df_med)
     if texto:
         alert_custom(texto, bg="#E8CF54", text="black")
     else:
         st.info("Sem registros.")
-with col3.expander("Baixa Oferta:"):
+with col3.expander("Baixa Oferta (tendencia de preços mais altos):"):
     df_baix = df_mes_atual[df_mes_atual[current_month_col] == "BAIXA_OFERTA"]
     texto = show_item_warning(df_baix)
     if texto:
