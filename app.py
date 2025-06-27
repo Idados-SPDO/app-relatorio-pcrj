@@ -153,26 +153,25 @@ day = today.day
 month = today.month
 year = today.year
 
-if day <= 15:
-    # Segunda quinzena do mês atual: 16 até último dia do mês
-    start_date = datetime.date(year, month, 16)
-    last_day = calendar.monthrange(year, month)[1]
-    end_date = datetime.date(year, month, last_day)
+if month < 12:
+    next_month = month + 1
+    next_year  = year
 else:
-    # Primeira quinzena do próximo mês: 1 até 15
-    if month < 12:
-        next_month = month + 1
-        next_year = year
-    else:
-        next_month = 1
-        next_year = year + 1
-    start_date = datetime.date(next_year, next_month, 1)
-    end_date = datetime.date(next_year, next_month, 15)
+    next_month = 1
+    next_year  = year + 1
 
-# Formatar “dd/mm/YYYY a dd/mm/YYYY”
-today_str = start_date.strftime("%d/%m/%Y")
-end_str = end_date.strftime("%d/%m/%Y")
-validade = f"{today_str} a {end_str}"
+# se for até dia 15, validade é 1–15 do próximo mês
+if day <= 15:
+    start_date = datetime.date(next_year, next_month, 1)
+    end_date   = datetime.date(next_year, next_month, 15)
+# se for depois do dia 15, validade é 16–último dia do próximo mês
+else:
+    start_date = datetime.date(next_year, next_month, 16)
+    last_day   = calendar.monthrange(next_year, next_month)[1]
+    end_date   = datetime.date(next_year, next_month, last_day)
+
+# formata “dd/mm/YYYY a dd/mm/YYYY”
+validade = f"{start_date:%d/%m/%Y} a {end_date:%d/%m/%Y}"
 
 current_year = today.year
 current_quartil = pd.to_datetime(today).quarter
